@@ -106,6 +106,12 @@ app.post('/', express.json(), (req, res) => {
   const agent = new WebhookClient({ request: req, response: res })
 
   async function welcome() {
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
     agent.add('Webhook works!')
     let message = ["Hi there!", "I'm your voice shop assitant bucky", "What can I do for you"]
 
@@ -140,6 +146,153 @@ app.post('/', express.json(), (req, res) => {
     agent.add(message)
   }
 
+  /**
+   * category query function
+   */
+  async function catQuery() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let catData = await apiGet(ENDPOINT_URL + '/categories')
+    catData = catData.categories;
+    let respond = 'Here is the list of categories:\n'
+
+    for (let i = 0; i < catData.length; i++) {
+      respond += (`${i + 1}.` + catData[i] + ' ')
+    }
+    agent.add(respond)
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+
+  }
+
+  /**
+   * cart number query fucntion
+   */
+  async function cartNumQuery() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let cartData = await apiGet(ENDPOINT_URL + "/application/products")
+
+    cartProduct = cartData.products;
+
+    let respond = "there are total " + cartProduct.length + " items in your cart";
+    agent.add(respond);
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+
+  }
+  /**
+   * cart type query function
+   */
+
+  async function cartTypeQuery() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+    let cartData = await apiGet(ENDPOINT_URL + "/application/products")
+    cartProduct = cartData.products;
+
+    // let product = [];
+
+    // for (let i = 0; i < cartProduct.length; i++) {
+    //   if (!product.includes(cartProduct[i].category))
+    //     product.push(cartProduct[i].category);
+    // }
+    // let response = "there are total " + product.length + " types of items in your cart";
+    // agent.add(response);
+    let catCollection = new Set();
+    cartProduct.forEach(item => {
+      catCollection.add(item.category);
+    })
+
+    // format here
+    let str = "";
+    catCollection.forEach(style => {
+      str += style.toString() + " ";
+    })
+
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + str, 'isUser': false }
+    )
+
+  }
+
+
+
+  /**
+   * cart price query function
+   */
+  async function cartPriceQuery() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let cartData = await apiGet(ENDPOINT_URL + "/application/products")
+    cartProduct = cartData.products;
+    let sum = 0
+    for (let i = 0; i < cartProduct.length; i++) {
+      sum += (cartProduct[i].price * cartProduct[i].count)
+    }
+    let respond = "the total cost of items in your cart is: " + sum + ' dollars'
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+
+
+
+
+  /**
+   * tag query function. also require catgories
+   */
+  async function tagQuery() {
+    // user query
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let cat = agent.parameters.categories
+    let tagsData = await apiGet(ENDPOINT_URL + '/categories/' + cat + '/tags');
+    let tags = tagsData.tags;
+
+    let respond = 'Here is the list of tags for ' + `${cat}:` + '\n'
+    for (let i = 0; i < tags.length; i++) {
+      respond += (`${i + 1}.` + tags[i] + ' ')
+    }
+
+    agent.add(respond)
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+
+
+  /**
+   * navigate function here
+   */
   async function navigate() {
 
     //post agent query
@@ -182,20 +335,17 @@ app.post('/', express.json(), (req, res) => {
 
   }
 
-
-
-
-
   //function for sending out message
-
-
-
-
   let intentMap = new Map()
   intentMap.set('Default Welcome Intent', welcome)
   // You will need to declare this `Login` content in DialogFlow to make this work
   intentMap.set('Login', login)
   intentMap.set('Navigate Intent', navigate)
+  intentMap.set('Category Query Intent', catQuery)
+  intentMap.set('Tags Query Intent', tagQuery)
+  intentMap.set('Cart Num Intent', cartNumQuery)
+  intentMap.set('Cart Price Intent', cartPriceQuery)
+  intentMap.set('Cart Type Intent', cartTypeQuery)
   agent.handleRequest(intentMap)
 })
 
