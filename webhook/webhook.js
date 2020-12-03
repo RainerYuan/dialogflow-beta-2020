@@ -438,8 +438,15 @@ app.post('/', express.json(), (req, res) => {
       ENDPOINT_URL + "/application/messages",
       { 'text': '' + agent.query, 'isUser': true }
     )
-    let pid = parseInt(agent.parameters.products);
+
+    let pid = Number(agent.parameters.product);
     let num = parseInt(agent.parameters.number);
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + pid, 'isUser': true }
+    )
+
     for (let i = 0; i < num; i++) {
       await apiDelete(ENDPOINT_URL + '/application/products/' + pid)
     }
@@ -452,6 +459,59 @@ app.post('/', express.json(), (req, res) => {
       { 'text': '' + respond, 'isUser': false }
     )
   }
+
+  /**
+   * Review cart
+   */
+  async function cartReview() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    await gotoPage({ 'page': '/' + username + '/cart-review' })
+
+    let respond = 'No problem, taking you to the review Cart page'
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+  async function cartConfirm() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    await gotoPage({ 'page': '/' + username + '/cart-confirmed' })
+
+    let respond = 'No problem, confirmming your order'
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+
+  async function cartClear() {
+    apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+    await apiDelete(ENDPOINT_URL + '/application/products')
+
+    let respond = 'Got it, you cart has been cleared'
+    agent.add(respond)
+    apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+
 
 
 
@@ -518,6 +578,9 @@ app.post('/', express.json(), (req, res) => {
   intentMap.set('Clear Filter Intent', clearFilter)
   intentMap.set('Add to Cart Intent', cartAdd)
   intentMap.set('Remove From Cart Intent', cartRemove)
+  intentMap.set('Reviw Cart Intent', cartReview)
+  intentMap.set('Confirm Cart Intent', cartConfirm)
+  intentMap.set('Clear Cart Intent', cartClear)
   agent.handleRequest(intentMap)
 })
 
