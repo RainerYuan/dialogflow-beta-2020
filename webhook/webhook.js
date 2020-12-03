@@ -191,7 +191,6 @@ app.post('/', express.json(), (req, res) => {
       ENDPOINT_URL + "/application/messages",
       { 'text': '' + respond, 'isUser': false }
     )
-
   }
   /**
    * cart type query function
@@ -205,25 +204,21 @@ app.post('/', express.json(), (req, res) => {
     let cartData = await apiGet(ENDPOINT_URL + "/application/products")
     cartProduct = cartData.products;
 
-    // let product = [];
-
-    // for (let i = 0; i < cartProduct.length; i++) {
-    //   if (!product.includes(cartProduct[i].category))
-    //     product.push(cartProduct[i].category);
-    // }
-    // let response = "there are total " + product.length + " types of items in your cart";
-    // agent.add(response);
-    let catCollection = new Set();
+    let catSet = new Set();
     cartProduct.forEach(item => {
-      catCollection.add(item.category);
+      catSet.add(item.category);
     })
 
     // format here
-    let str = "";
-    catCollection.forEach(style => {
-      str += style.toString() + " ";
-    })
+    let arr = [...catSet]
+    let str = "You have these types of items in you cart: ";
+    // catSet.values().forEach((style, index) => {
+    //   str += `${index + 1}` + style.toString() + ' ';
+    // })
 
+    for (let i = 0; i < arr.length; i++) {
+      str += `${i + 1}.` + arr[i].toString() + ' ';
+    }
 
     await apiPost(
       ENDPOINT_URL + "/application/messages",
@@ -257,10 +252,6 @@ app.post('/', express.json(), (req, res) => {
     )
   }
 
-
-
-
-
   /**
    * tag query function. also require catgories
    */
@@ -287,6 +278,182 @@ app.post('/', express.json(), (req, res) => {
       { 'text': '' + respond, 'isUser': false }
     )
   }
+
+  async function productInfo() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+    let app = await apiGet(ENDPOINT_URL + '/application')
+    let currpage = app.page
+    let pid = agent.parameters.product
+
+
+    if (!Number.isInteger(Number(currpage.substring(currpage.lastIndexOf("/") + 1)))) {
+      await gotoPage({ 'page': currpage + '/products/' + pid })
+    }
+
+    let productInfo = await apiGet(ENDPOINT_URL + '/products/' + pid)
+    let respond = 'Here is the product description: ' + productInfo.description
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+  async function productReview() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+    let app = await apiGet(ENDPOINT_URL + '/application')
+    let currpage = app.page
+
+    if (!Number.isInteger(Number(currpage.substring(currpage.lastIndexOf("/") + 1)))) {
+      let res = 'Could you go to a product page and then ask about its review? thanks!'
+      agent.add(res)
+
+      await apiPost(
+        ENDPOINT_URL + "/application/messages",
+        { 'text': '' + res, 'isUser': false }
+      )
+      return
+    }
+
+
+    let pid = currpage.substring(currpage.lastIndexOf("/") + 1)
+    let reviewData = await apiGet(ENDPOINT_URL + '/products/' + pid + '/reviews')
+    reviews = reviewData.reviews;
+
+    let sum = 0.0;
+    let respond = 'Hi, the average ratting of this product is '
+
+    if (reviews.length === 0) {
+      respond = 'I am sorry, the product currentlly has no review'
+    } else {
+      for (let i = 0; i < reviews.length; i++) {
+        sum += reviews[i].stars;
+      }
+      let avg = sum / reviews.length;
+      respond = respond + avg + ' stars. '
+      respond += "\n Below is a list of reviews: "
+
+      // output the first 5 reviews 
+      for (let i = 0; i < reviews.length; i++) {
+        if (i > 4) { break; }
+        if (reviews[i].text !== '<Product Review Text>')
+          respond += `${i + 1}.` + reviews[i].text
+      }
+    }
+
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+
+  }
+
+  async function narrowTag() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let tagList = agent.parameters.tags
+    for (let i = 0; i < tagList.length; i++) {
+      await apiPost(ENDPOINT_URL + '/application/tags/' + tagList[i].toString());
+    }
+
+    let respond = "Sure, updating filter for you";
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+
+  }
+
+  async function clearFilter() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    await apiDelete(ENDPOINT_URL + '/application/tags');
+
+    let respond = "Sure, updating filter for you";
+    agent.add(respond)
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+  /**
+   * function to add items in cart
+   */
+  async function cartAdd() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+
+    let app = await apiGet(ENDPOINT_URL + '/application')
+    let currpage = app.page
+    let pid = agent.parameters.product
+
+    if (!Number.isInteger(Number(currpage.substring(currpage.lastIndexOf("/") + 1)))) {
+      let res = 'Could you go to a product page and then ask to add items!'
+      agent.add(res)
+      await apiPost(
+        ENDPOINT_URL + "/application/messages",
+        { 'text': '' + res, 'isUser': false }
+      )
+      return
+    }
+
+    pid = currpage.substring(currpage.lastIndexOf("/") + 1)
+    let number = agent.parameters.number;
+
+    for (let i = 0; i < number; i++) {
+      await apiPost(ENDPOINT_URL + '/application/products/' + pid)
+    }
+
+    let respond = 'Got it, I have add the the items into your cart';
+    agent.add(respond)
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+  /**
+   * Remove items from cart
+   */
+  async function cartRemove() {
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + agent.query, 'isUser': true }
+    )
+    let pid = parseInt(agent.parameters.products);
+    let num = parseInt(agent.parameters.number);
+    for (let i = 0; i < num; i++) {
+      await apiDelete(ENDPOINT_URL + '/application/products/' + pid)
+    }
+
+    let respond = 'Got it, I have removed those item From your cart';
+    agent.add(respond)
+
+    await apiPost(
+      ENDPOINT_URL + "/application/messages",
+      { 'text': '' + respond, 'isUser': false }
+    )
+  }
+
+
 
 
 
@@ -334,7 +501,6 @@ app.post('/', express.json(), (req, res) => {
     }
 
   }
-
   //function for sending out message
   let intentMap = new Map()
   intentMap.set('Default Welcome Intent', welcome)
@@ -346,6 +512,12 @@ app.post('/', express.json(), (req, res) => {
   intentMap.set('Cart Num Intent', cartNumQuery)
   intentMap.set('Cart Price Intent', cartPriceQuery)
   intentMap.set('Cart Type Intent', cartTypeQuery)
+  intentMap.set('product InfoQuery Intent', productInfo)
+  intentMap.set('Product Reveiw Intent', productReview)
+  intentMap.set('Filter Intent', narrowTag)
+  intentMap.set('Clear Filter Intent', clearFilter)
+  intentMap.set('Add to Cart Intent', cartAdd)
+  intentMap.set('Remove From Cart Intent', cartRemove)
   agent.handleRequest(intentMap)
 })
 
