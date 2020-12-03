@@ -442,10 +442,6 @@ app.post('/', express.json(), (req, res) => {
     let pid = Number(agent.parameters.product);
     let num = parseInt(agent.parameters.number);
 
-    await apiPost(
-      ENDPOINT_URL + "/application/messages",
-      { 'text': '' + pid, 'isUser': true }
-    )
 
     for (let i = 0; i < num; i++) {
       await apiDelete(ENDPOINT_URL + '/application/products/' + pid)
